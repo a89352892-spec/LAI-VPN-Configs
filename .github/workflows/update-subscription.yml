@@ -1,0 +1,45 @@
+name: Update My VPN Subscription
+
+on:
+  schedule:
+    # Запускаем каждые 12 часов: в 00:00 и 12:00 UTC
+    - cron: '0 0,12 * * *'
+  # Позволяет запускать вручную из интерфейса GitHub
+  workflow_dispatch:
+
+jobs:
+  update-subscription:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install requests
+
+      - name: Run update script
+        run: python update_configs.py
+
+      - name: Commit and push changes
+        # Используем секрет GH_TOKEN для аутентификации
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Проверяем, есть ли изменения
+          if git diff --quiet; then
+            echo "Нет изменений для коммита."
+          else
+            git add FREE-VPN.txt
+            git commit -m "Автоматическое обновление подписки (каждые 12 часов)"
+            # Пушим, используя токен
+            git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git HEAD:main
+          fi
